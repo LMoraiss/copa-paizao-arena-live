@@ -11,38 +11,32 @@ interface Match {
   id: string;
   home_team: { name: string; logo_url?: string };
   away_team: { name: string; logo_url?: string };
-  match_date: string;
-  location: string;
-  status: 'upcoming' | 'live' | 'finished';
+  scheduled_at: string;
+  venue: string;
+  status: 'scheduled' | 'live' | 'finished' | 'postponed' | 'cancelled';
   home_score: number;
   away_score: number;
-  stage: string;
 }
 
 export const Matches = () => {
   const { data: matches = [], isLoading } = useQuery({
     queryKey: ['matches'],
     queryFn: async () => {
-      try {
-        const { data, error } = await (supabase as any)
-          .from('matches')
-          .select(`
-            *,
-            home_team:teams!matches_home_team_id_fkey(name, logo_url),
-            away_team:teams!matches_away_team_id_fkey(name, logo_url)
-          `)
-          .order('match_date', { ascending: true });
+      const { data, error } = await supabase
+        .from('matches')
+        .select(`
+          *,
+          home_team:teams!matches_home_team_id_fkey(name, logo_url),
+          away_team:teams!matches_away_team_id_fkey(name, logo_url)
+        `)
+        .order('scheduled_at', { ascending: true });
 
-        if (error) throw error;
-        return (data as Match[]) || [];
-      } catch (error) {
-        console.log('Matches fetch error (expected if schema not created):', error);
-        return [];
-      }
+      if (error) throw error;
+      return (data as Match[]) || [];
     },
   });
 
-  const upcomingMatches = matches.filter(m => m.status === 'upcoming');
+  const upcomingMatches = matches.filter(m => m.status === 'scheduled');
   const liveMatches = matches.filter(m => m.status === 'live');
   const finishedMatches = matches.filter(m => m.status === 'finished');
 
@@ -80,7 +74,7 @@ export const Matches = () => {
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-2">
             <Calendar className="w-4 h-4 text-gray-500" />
-            <span className="text-sm text-gray-600">{formatDate(match.match_date)}</span>
+            <span className="text-sm text-gray-600">{formatDate(match.scheduled_at)}</span>
           </div>
           {getStatusBadge(match.status)}
         </div>
@@ -109,11 +103,11 @@ export const Matches = () => {
         <div className="flex items-center justify-center space-x-4 text-sm text-gray-600">
           <div className="flex items-center space-x-1">
             <Clock className="w-4 h-4" />
-            <span>{formatTime(match.match_date)}</span>
+            <span>{formatTime(match.scheduled_at)}</span>
           </div>
           <div className="flex items-center space-x-1">
             <MapPin className="w-4 h-4" />
-            <span>{match.location}</span>
+            <span>{match.venue}</span>
           </div>
         </div>
       </CardContent>

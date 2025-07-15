@@ -20,21 +20,16 @@ export const Players = () => {
   const { data: players = [], isLoading } = useQuery({
     queryKey: ['players'],
     queryFn: async () => {
-      try {
-        const { data, error } = await (supabase as any)
-          .from('players')
-          .select(`
-            *,
-            team:teams(name)
-          `)
-          .order('name');
+      const { data, error } = await supabase
+        .from('players')
+        .select(`
+          *,
+          team:teams(name)
+        `)
+        .order('name');
 
-        if (error) throw error;
-        return (data as Player[]) || [];
-      } catch (error) {
-        console.log('Players fetch error (expected if schema not created):', error);
-        return [];
-      }
+      if (error) throw error;
+      return (data as Player[]) || [];
     },
   });
 

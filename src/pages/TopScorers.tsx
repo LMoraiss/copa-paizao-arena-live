@@ -17,23 +17,18 @@ export const TopScorers = () => {
   const { data: players = [], isLoading } = useQuery({
     queryKey: ['top-scorers'],
     queryFn: async () => {
-      try {
-        const { data, error } = await (supabase as any)
-          .from('players')
-          .select(`
-            *,
-            team:teams(name)
-          `)
-          .gt('goals', 0)
-          .order('goals', { ascending: false })
-          .limit(20);
+      const { data, error } = await supabase
+        .from('players')
+        .select(`
+          *,
+          team:teams(name)
+        `)
+        .gt('goals', 0)
+        .order('goals', { ascending: false })
+        .limit(20);
 
-        if (error) throw error;
-        return data || [];
-      } catch (error) {
-        console.log('Top scorers fetch error (expected if schema not created):', error);
-        return [];
-      }
+      if (error) throw error;
+      return data || [];
     },
   });
 

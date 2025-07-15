@@ -17,18 +17,13 @@ export const Standings = () => {
   const { data: teams = [], isLoading } = useQuery({
     queryKey: ['teams'],
     queryFn: async () => {
-      try {
-        const { data, error } = await (supabase as any)
-          .from('teams')
-          .select('*')
-          .order('name');
+      const { data, error } = await supabase
+        .from('teams')
+        .select('*')
+        .order('name');
 
-        if (error) throw error;
-        return data || [];
-      } catch (error) {
-        console.log('Teams fetch error (expected if schema not created):', error);
-        return [];
-      }
+      if (error) throw error;
+      return data || [];
     },
   });
 
