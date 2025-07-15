@@ -1,169 +1,178 @@
 
-import React, { useState, useEffect } from 'react';
-import { MatchCard } from '@/components/MatchCard';
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Clock, MapPin, Calendar } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
-import { Calendar, Trophy, Clock } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-
-interface Team {
-  id: string;
-  name: string;
-  logo?: string;
-}
+import { useQuery } from '@tanstack/react-query';
 
 interface Match {
   id: string;
-  homeTeam: Team;
-  awayTeam: Team;
-  dateTime: Date;
+  home_team: { name: string; logo_url?: string };
+  away_team: { name: string; logo_url?: string };
+  match_date: string;
   location: string;
   status: 'upcoming' | 'live' | 'finished';
-  homeScore?: number;
-  awayScore?: number;
+  home_score: number;
+  away_score: number;
   stage: string;
 }
 
 export const Matches = () => {
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const { data: matches = [], isLoading } = useQuery({
+    queryKey: ['matches'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('matches')
+        .select(`
+          *,
+          home_team:teams!matches_home_team_id_fkey(name, logo_url),
+          away_team:teams!matches_away_team_id_fkey(name, logo_url)
+        `)
+        .order('match_date', { ascending: true });
+
+      if (error) throw error;
+      return data as Match[];
+    },
+  });
 
   const upcomingMatches = matches.filter(m => m.status === 'upcoming');
   const liveMatches = matches.filter(m => m.status === 'live');
   const finishedMatches = matches.filter(m => m.status === 'finished');
 
-  useEffect(() => {
-    fetchMatches();
-    
-    // Set up real-time subscription for live updates
-    const channel = supabase
-      .channel('matches-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'matches'
-        },
-        () => {
-          fetchMatches();
-        }
-      )
-      .subscribe();
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  };
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
-  const fetchMatches = async () => {
-    try {
-      console.log('Fetching matches...');
-      // For now, we'll use empty data since tables haven't been created yet
-      setMatches([]);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching matches:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao carregar partidas. Tente novamente.",
-        variant: "destructive",
-      });
-      setLoading(false);
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'live':
+        return <Badge className="bg-red-500 text-white">AO VIVO</Badge>;
+      case 'finished':
+        return <Badge variant="secondary">ENCERRADA</Badge>;
+      default:
+        return <Badge variant="outline">AGENDADA</Badge>;
     }
   };
 
-  if (loading) {
+  const MatchCard = ({ match }: { match: Match }) => (
+    <Card className="hover:shadow-lg transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <Calendar className="w-4 h-4 text-gray-500" />
+            <span className="text-sm text-gray-600">{formatDate(match.match_date)}</span>
+          </div>
+          {getStatusBadge(match.status)}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex-1 text-center">
+            <div className="font-semibold text-lg">{match.home_team.name}</div>
+          </div>
+          
+          <div className="mx-4 text-center">
+            {match.status === 'finished' || match.status === 'live' ? (
+              <div className="text-2xl font-bold text-marista-dark-blue">
+                {match.home_score} - {match.away_score}
+              </div>
+            ) : (
+              <div className="text-lg text-gray-500">vs</div>
+            )}
+          </div>
+          
+          <div className="flex-1 text-center">
+            <div className="font-semibold text-lg">{match.away_team.name}</div>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-center space-x-4 text-sm text-gray-600">
+          <div className="flex items-center space-x-1">
+            <Clock className="w-4 h-4" />
+            <span>{formatTime(match.match_date)}</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <MapPin className="w-4 h-4" />
+            <span>{match.location}</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-marista-dark-blue mb-2">
-            Copa Paizão 2024
-          </h1>
-          <p className="text-gray-600">Carregando partidas...</p>
-        </div>
-        <div className="grid gap-4 animate-pulse">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-48 bg-gray-200 rounded-lg"></div>
-          ))}
-        </div>
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">Carregando partidas...</div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-marista-dark-blue mb-2">
-          Copa Paizão 2024
-        </h1>
-        <p className="text-gray-600">Acompanhe todas as partidas do torneio</p>
-      </div>
-
-      <Tabs defaultValue="live" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="live" className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-            <span>Ao Vivo ({liveMatches.length})</span>
-          </TabsTrigger>
-          <TabsTrigger value="upcoming">
-            Próximas ({upcomingMatches.length})
-          </TabsTrigger>
-          <TabsTrigger value="finished">
-            Finalizadas ({finishedMatches.length})
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="live" className="space-y-4">
-          {liveMatches.length === 0 ? (
-            <EmptyState
-              icon={Trophy}
-              title="Nenhuma partida ao vivo"
-              description="No momento não há partidas sendo disputadas. Acompanhe as próximas partidas na aba correspondente."
-            />
-          ) : (
-            <div className="grid gap-4">
-              {liveMatches.map(match => (
-                <MatchCard key={match.id} match={match} />
-              ))}
-            </div>
+    <div className="container mx-auto px-4 py-8">
+      {matches.length === 0 ? (
+        <EmptyState
+          icon={Calendar}
+          title="Nenhuma partida agendada"
+          description="As partidas da Copa Paizão aparecerão aqui quando forem criadas pelos administradores."
+        />
+      ) : (
+        <div className="space-y-8">
+          {liveMatches.length > 0 && (
+            <section>
+              <h2 className="text-2xl font-bold text-marista-dark-blue mb-4">
+                🔴 Partidas ao Vivo
+              </h2>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {liveMatches.map((match) => (
+                  <MatchCard key={match.id} match={match} />
+                ))}
+              </div>
+            </section>
           )}
-        </TabsContent>
 
-        <TabsContent value="upcoming" className="space-y-4">
-          {upcomingMatches.length === 0 ? (
-            <EmptyState
-              icon={Calendar}
-              title="Nenhuma partida agendada"
-              description="Ainda não há partidas agendadas. Os administradores irão adicionar as partidas em breve."
-            />
-          ) : (
-            <div className="grid gap-4">
-              {upcomingMatches.map(match => (
-                <MatchCard key={match.id} match={match} />
-              ))}
-            </div>
+          {upcomingMatches.length > 0 && (
+            <section>
+              <h2 className="text-2xl font-bold text-marista-dark-blue mb-4">
+                📅 Próximas Partidas
+              </h2>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {upcomingMatches.map((match) => (
+                  <MatchCard key={match.id} match={match} />
+                ))}
+              </div>
+            </section>
           )}
-        </TabsContent>
 
-        <TabsContent value="finished" className="space-y-4">
-          {finishedMatches.length === 0 ? (
-            <EmptyState
-              icon={Clock}
-              title="Nenhuma partida finalizada"
-              description="Ainda não há partidas finalizadas. Os resultados aparecerão aqui após as partidas."
-            />
-          ) : (
-            <div className="grid gap-4">
-              {finishedMatches.map(match => (
-                <MatchCard key={match.id} match={match} />
-              ))}
-            </div>
+          {finishedMatches.length > 0 && (
+            <section>
+              <h2 className="text-2xl font-bold text-marista-dark-blue mb-4">
+                ✅ Partidas Encerradas
+              </h2>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {finishedMatches.map((match) => (
+                  <MatchCard key={match.id} match={match} />
+                ))}
+              </div>
+            </section>
           )}
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
     </div>
   );
 };
