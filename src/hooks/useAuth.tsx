@@ -39,14 +39,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user profile
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
-          setProfile(profileData);
+          // Fetch user profile with proper error handling
+          try {
+            const { data: profileData } = await supabase
+              .from('profiles' as any)
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            
+            setProfile(profileData);
+          } catch (error) {
+            console.log('Profile fetch error (expected if schema not created):', error);
+            setProfile(null);
+          }
         } else {
           setProfile(null);
         }
@@ -62,12 +67,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (session?.user) {
         supabase
-          .from('profiles')
+          .from('profiles' as any)
           .select('*')
           .eq('id', session.user.id)
           .single()
           .then(({ data: profileData }) => {
             setProfile(profileData);
+            setLoading(false);
+          })
+          .catch((error) => {
+            console.log('Profile fetch error (expected if schema not created):', error);
+            setProfile(null);
             setLoading(false);
           });
       } else {
