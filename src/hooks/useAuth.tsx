@@ -41,8 +41,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (session?.user) {
           // Fetch user profile with proper error handling
           try {
-            const { data: profileData } = await supabase
-              .from('profiles' as any)
+            const { data: profileData } = await (supabase as any)
+              .from('profiles')
               .select('*')
               .eq('id', session.user.id)
               .single();
@@ -66,16 +66,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        supabase
-          .from('profiles' as any)
+        (supabase as any)
+          .from('profiles')
           .select('*')
           .eq('id', session.user.id)
           .single()
-          .then(({ data: profileData }) => {
+          .then(({ data: profileData }: any) => {
             setProfile(profileData);
             setLoading(false);
           })
-          .catch((error) => {
+          .catch((error: any) => {
             console.log('Profile fetch error (expected if schema not created):', error);
             setProfile(null);
             setLoading(false);
@@ -139,11 +139,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    toast({
-      title: "Logout realizado",
-      description: "Até logo!",
-    });
+    try {
+      await supabase.auth.signOut();
+      toast({
+        title: "Logout realizado",
+        description: "Até logo!",
+      });
+    } catch (error) {
+      console.log('Sign out error:', error);
+    }
   };
 
   const isAdmin = profile?.role === 'admin';

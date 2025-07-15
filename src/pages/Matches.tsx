@@ -24,8 +24,8 @@ export const Matches = () => {
     queryKey: ['matches'],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase
-          .from('matches' as any)
+        const { data, error } = await (supabase as any)
+          .from('matches')
           .select(`
             *,
             home_team:teams!matches_home_team_id_fkey(name, logo_url),

@@ -18,8 +18,8 @@ export const TopScorers = () => {
     queryKey: ['top-scorers'],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase
-          .from('players' as any)
+        const { data, error } = await (supabase as any)
+          .from('players')
           .select(`
             *,
             team:teams(name)
