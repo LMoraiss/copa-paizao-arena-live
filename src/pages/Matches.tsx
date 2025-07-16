@@ -22,7 +22,7 @@ export const Matches = () => {
   const { data: matches = [], isLoading } = useQuery({
     queryKey: ['matches'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('matches')
         .select(`
           *,

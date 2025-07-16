@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (session?.user) {
           // Fetch user profile
           try {
-            const { data: profileData, error } = await supabase
+            const { data: profileData, error } = await (supabase as any)
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
@@ -67,18 +67,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        supabase
+        (supabase as any)
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
           .single()
-          .then(({ data: profileData, error }) => {
+          .then(({ data: profileData, error }: any) => {
             if (!error) {
               setProfile(profileData);
             }
             setLoading(false);
           })
-          .catch((error) => {
+          .catch((error: any) => {
             console.log('Profile fetch error:', error);
             setProfile(null);
             setLoading(false);
@@ -143,7 +143,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
       toast({
         title: "Logout realizado",
         description: "Até logo!",

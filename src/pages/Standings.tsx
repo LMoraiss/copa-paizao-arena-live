@@ -17,7 +17,7 @@ export const Standings = () => {
   const { data: teams = [], isLoading } = useQuery({
     queryKey: ['teams'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('teams')
         .select('*')
         .order('name');

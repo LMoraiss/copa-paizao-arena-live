@@ -17,7 +17,7 @@ export const TopScorers = () => {
   const { data: players = [], isLoading } = useQuery({
     queryKey: ['top-scorers'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('players')
         .select(`
           *,

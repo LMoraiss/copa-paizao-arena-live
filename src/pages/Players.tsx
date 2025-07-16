@@ -20,7 +20,7 @@ export const Players = () => {
   const { data: players = [], isLoading } = useQuery({
     queryKey: ['players'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('players')
         .select(`
           *,
