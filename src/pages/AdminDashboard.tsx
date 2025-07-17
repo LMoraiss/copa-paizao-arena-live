@@ -4,9 +4,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, Trophy, Calendar, Target, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { CreateTeamForm } from '@/components/forms/CreateTeamForm';
+import { CreatePlayerForm } from '@/components/forms/CreatePlayerForm';
+import { CreateMatchForm } from '@/components/forms/CreateMatchForm';
 
 export const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('teams');
+  const [teamDialogOpen, setTeamDialogOpen] = useState(false);
+  const [playerDialogOpen, setPlayerDialogOpen] = useState(false);
+  const [matchDialogOpen, setMatchDialogOpen] = useState(false);
+
+  const handleFormSuccess = () => {
+    // Close dialogs and potentially refresh data
+    setTeamDialogOpen(false);
+    setPlayerDialogOpen(false);
+    setMatchDialogOpen(false);
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -85,10 +99,23 @@ export const AdminDashboard = () => {
             <TabsContent value="teams" className="space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium">Gerenciar Equipes</h3>
-                <Button className="bg-marista-dark-blue hover:bg-marista-dark-blue/90">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nova Equipe
-                </Button>
+                <Dialog open={teamDialogOpen} onOpenChange={setTeamDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-marista-dark-blue hover:bg-marista-dark-blue/90">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Nova Equipe
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Criar Nova Equipe</DialogTitle>
+                    </DialogHeader>
+                    <CreateTeamForm 
+                      onSuccess={handleFormSuccess}
+                      onCancel={() => setTeamDialogOpen(false)}
+                    />
+                  </DialogContent>
+                </Dialog>
               </div>
               <div className="text-center py-8 text-gray-500">
                 Nenhuma equipe cadastrada ainda.
@@ -98,10 +125,23 @@ export const AdminDashboard = () => {
             <TabsContent value="players" className="space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium">Gerenciar Jogadores</h3>
-                <Button className="bg-marista-dark-blue hover:bg-marista-dark-blue/90">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Novo Jogador
-                </Button>
+                <Dialog open={playerDialogOpen} onOpenChange={setPlayerDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-marista-dark-blue hover:bg-marista-dark-blue/90">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Novo Jogador
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Criar Novo Jogador</DialogTitle>
+                    </DialogHeader>
+                    <CreatePlayerForm 
+                      onSuccess={handleFormSuccess}
+                      onCancel={() => setPlayerDialogOpen(false)}
+                    />
+                  </DialogContent>
+                </Dialog>
               </div>
               <div className="text-center py-8 text-gray-500">
                 Nenhum jogador cadastrado ainda.
@@ -111,10 +151,23 @@ export const AdminDashboard = () => {
             <TabsContent value="matches" className="space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium">Gerenciar Partidas</h3>
-                <Button className="bg-marista-dark-blue hover:bg-marista-dark-blue/90">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nova Partida
-                </Button>
+                <Dialog open={matchDialogOpen} onOpenChange={setMatchDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-marista-dark-blue hover:bg-marista-dark-blue/90">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Nova Partida
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Criar Nova Partida</DialogTitle>
+                    </DialogHeader>
+                    <CreateMatchForm 
+                      onSuccess={handleFormSuccess}
+                      onCancel={() => setMatchDialogOpen(false)}
+                    />
+                  </DialogContent>
+                </Dialog>
               </div>
               <div className="text-center py-8 text-gray-500">
                 Nenhuma partida agendada ainda.
