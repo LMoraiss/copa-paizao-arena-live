@@ -60,23 +60,30 @@ export const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-marista-gray flex items-center justify-center px-4 bg-cover bg-center" 
-         style={{ backgroundImage: 'linear-gradient(rgba(0,90,140,0.1), rgba(0,90,140,0.1))' }}>
-      <div className="w-full max-w-md">
+    <div 
+      className="min-h-screen flex items-center justify-center px-4 relative bg-cover bg-center bg-no-repeat"
+      style={{ 
+        backgroundImage: 'url(/copa-paizao-bg.png)'
+      }}
+    >
+      {/* Background overlay with blur and blue tint */}
+      <div className="absolute inset-0 bg-[hsl(214,100%,16%)] bg-opacity-60 backdrop-blur-sm"></div>
+      
+      <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="mx-auto w-20 h-20 bg-marista-dark-blue rounded-full flex items-center justify-center mb-4 shadow-lg">
+          <div className="mx-auto w-20 h-20 bg-white/10 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center mb-4 shadow-2xl">
             <Trophy className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-marista-dark-blue mb-2">
+          <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-lg">
             Copa Paizão
           </h1>
-          <p className="text-gray-600">
+          <p className="text-white/90 text-lg drop-shadow-md">
             Colégio Marista - Torneio Oficial
           </p>
         </div>
 
-        <Card className="shadow-xl border-0">
-          <CardHeader className="bg-marista-dark-blue text-white rounded-t-lg">
+        <Card className="shadow-2xl border-0 bg-white/95 backdrop-blur-md rounded-xl">
+          <CardHeader className="bg-[hsl(214,100%,16%)] text-white rounded-t-xl">
             <CardTitle className="text-center text-xl">Acesso à Plataforma</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
@@ -129,7 +136,7 @@ export const Login = () => {
 
                   <Button
                     type="submit"
-                    className="w-full bg-marista-dark-blue hover:bg-marista-dark-blue/90"
+                    className="w-full bg-[hsl(214,100%,16%)] hover:bg-[hsl(214,100%,20%)] text-white font-semibold py-3 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
                     disabled={loading}
                   >
                     {loading ? 'Entrando...' : 'Entrar'}
@@ -196,7 +203,7 @@ export const Login = () => {
 
                   <Button
                     type="submit"
-                    className="w-full bg-marista-light-blue hover:bg-marista-light-blue/90"
+                    className="w-full bg-[hsl(214,100%,25%)] hover:bg-[hsl(214,100%,30%)] text-white font-semibold py-3 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
                     disabled={loading}
                   >
                     {loading ? 'Criando conta...' : 'Criar Conta'}
@@ -208,7 +215,7 @@ export const Login = () => {
         </Card>
 
         <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-white/80 drop-shadow-md">
             © 2024 Colégio Marista - Copa Paizão
           </p>
         </div>
