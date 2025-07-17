@@ -31,55 +31,91 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  const createProfileIfNeeded = async (user: User) => {
+    try {
+      // First try to fetch existing profile
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error fetching profile:', fetchError);
+        return null;
+      }
+
+      if (existingProfile) {
+        return existingProfile;
+      }
+
+      // Create profile if it doesn't exist
+      const role = user.email === 'lucasrmorais2006@gmail.com' ? 'admin' : 'user';
+      const { data: newProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id,
+          email: user.email || '',
+          full_name: user.user_metadata?.full_name || '',
+          role: role
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('Error creating profile:', createError);
+        return null;
+      }
+
+      return newProfile;
+    } catch (error) {
+      console.error('Error in createProfileIfNeeded:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user profile
-          try {
-            const { data: profileData, error } = await (supabase as any)
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-            
-            if (error) throw error;
-            setProfile(profileData);
-          } catch (error) {
-            console.log('Profile fetch error:', error);
-            setProfile(null);
-          }
+          // Defer profile creation/fetching to avoid blocking the auth callback
+          setTimeout(async () => {
+            try {
+              const profileData = await createProfileIfNeeded(session.user);
+              setProfile(profileData);
+            } catch (error) {
+              console.error('Profile creation/fetch failed:', error);
+              setProfile(null);
+            } finally {
+              setLoading(false);
+            }
+          }, 0);
         } else {
           setProfile(null);
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        (supabase as any)
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data: profileData, error }: any) => {
-            if (!error) {
-              setProfile(profileData);
-            }
+        createProfileIfNeeded(session.user)
+          .then(profileData => {
+            setProfile(profileData);
             setLoading(false);
           })
-          .catch((error: any) => {
-            console.log('Profile fetch error:', error);
+          .catch(error => {
+            console.error('Initial profile fetch failed:', error);
             setProfile(null);
             setLoading(false);
           });
@@ -99,16 +135,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (error) {
+        console.error('Sign in error:', error);
         return { error: error.message };
       }
 
-      toast({
-        title: "Login realizado com sucesso!",
-        description: "Bem-vindo à Copa Paizão",
-      });
+      if (data.user) {
+        toast({
+          title: "Login realizado com sucesso!",
+          description: "Bem-vindo à Copa Paizão",
+        });
+      }
 
       return {};
     } catch (err) {
+      console.error('Unexpected sign in error:', err);
       return { error: 'Erro inesperado ao fazer login' };
     }
   };
@@ -127,16 +167,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (error) {
+        console.error('Sign up error:', error);
         return { error: error.message };
       }
 
-      toast({
-        title: "Conta criada com sucesso!",
-        description: "Verifique seu email para confirmar a conta.",
-      });
+      if (data.user) {
+        toast({
+          title: "Conta criada com sucesso!",
+          description: "Verifique seu email para confirmar a conta.",
+        });
+      }
 
       return {};
     } catch (err) {
+      console.error('Unexpected sign up error:', err);
       return { error: 'Erro inesperado ao criar conta' };
     }
   };
@@ -151,7 +195,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         description: "Até logo!",
       });
     } catch (error) {
-      console.log('Sign out error:', error);
+      console.error('Sign out error:', error);
     }
   };
 
