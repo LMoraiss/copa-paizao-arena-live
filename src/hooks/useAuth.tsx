@@ -35,43 +35,58 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const createProfileIfNeeded = async (user: User) => {
     try {
+      console.log('🔍 createProfileIfNeeded called for user:', user.id, user.email);
+      
       // First try to fetch existing profile
+      console.log('📋 Attempting to fetch existing profile...');
       const { data: existingProfile, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .maybeSingle();
 
+      console.log('📋 Fetch result:', { existingProfile, fetchError });
+
       if (fetchError && fetchError.code !== 'PGRST116') {
-        console.error('Error fetching profile:', fetchError);
+        console.error('❌ Error fetching profile:', fetchError);
         return null;
       }
 
       if (existingProfile) {
+        console.log('✅ Found existing profile:', existingProfile);
         return existingProfile;
       }
 
       // Create profile if it doesn't exist
-      const role = user.email === 'lucasrmorais2006@gmail.com' ? 'admin' : 'user';
+      console.log('📝 No existing profile found, creating new one...');
+      const role: 'admin' | 'user' = user.email === 'lucasrmorais2006@gmail.com' ? 'admin' : 'user';
+      console.log('👤 User role determined:', role, 'for email:', user.email);
+      
+      const profileData = {
+        id: user.id,
+        email: user.email || '',
+        full_name: user.user_metadata?.full_name || '',
+        role: role
+      };
+      console.log('📝 Creating profile with data:', profileData);
+
       const { data: newProfile, error: createError } = await supabase
         .from('profiles')
-        .insert({
-          id: user.id,
-          email: user.email || '',
-          full_name: user.user_metadata?.full_name || '',
-          role: role
-        })
+        .insert(profileData)
         .select()
         .single();
 
+      console.log('📝 Create result:', { newProfile, createError });
+
       if (createError) {
-        console.error('Error creating profile:', createError);
+        console.error('❌ Error creating profile:', createError);
         return null;
       }
 
+      console.log('✅ Successfully created profile:', newProfile);
       return newProfile;
     } catch (error) {
-      console.error('Error in createProfileIfNeeded:', error);
+      console.error('💥 Unexpected error in createProfileIfNeeded:', error);
       return null;
     }
   };

@@ -8,7 +8,7 @@ import { Trophy, Mail, Lock, AlertCircle, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import copaBackground from "@/assets/copa-paizao-bg.jpg";
+const copaBackground = "/lovable-uploads/85f73afd-552e-4fa4-aacd-818f795b5b52.png";
 
 export const Login = () => {
   const [email, setEmail] = useState('');
@@ -67,7 +67,7 @@ export const Login = () => {
       }}
     >
       {/* Overlay for better contrast */}
-      <div className="absolute inset-0 bg-primary/20 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
       
       {/* Content */}
       <div className="relative z-10 w-full max-w-md">

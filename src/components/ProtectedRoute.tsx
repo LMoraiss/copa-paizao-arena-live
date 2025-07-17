@@ -2,6 +2,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { Loader2, AlertCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -32,11 +33,30 @@ export const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRout
   if (!profile) {
     console.log('User exists but no profile found');
     return (
-      <div className="min-h-screen bg-marista-gray flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-4" />
-          <p className="text-red-600 mb-2">Erro ao carregar perfil do usuário</p>
-          <p className="text-sm text-gray-600">Tente fazer logout e login novamente</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-6">
+          <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-4" />
+          <p className="text-destructive mb-2 font-medium">Erro ao carregar perfil do usuário</p>
+          <p className="text-sm text-muted-foreground mb-6">
+            Não foi possível carregar as informações do seu perfil. Isso pode ser um problema temporário.
+          </p>
+          <div className="space-y-2">
+            <button 
+              onClick={() => window.location.reload()} 
+              className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            >
+              Tentar Novamente
+            </button>
+            <button 
+              onClick={() => {
+                // Clear auth and redirect to login
+                supabase.auth.signOut();
+              }} 
+              className="w-full px-4 py-2 border border-border text-foreground rounded-md hover:bg-accent transition-colors"
+            >
+              Fazer Logout
+            </button>
+          </div>
         </div>
       </div>
     );
