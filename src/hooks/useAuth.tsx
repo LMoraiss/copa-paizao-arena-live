@@ -9,6 +9,8 @@ interface Profile {
   email: string;
   full_name: string | null;
   role: 'admin' | 'user';
+  created_at: string;
+  updated_at: string;
 }
 
 interface AuthContextType {
