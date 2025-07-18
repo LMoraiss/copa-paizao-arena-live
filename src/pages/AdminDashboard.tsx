@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, Trophy, Calendar, Target, Plus } from 'lucide-react';
@@ -8,15 +8,67 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { CreateTeamForm } from '@/components/forms/CreateTeamForm';
 import { CreatePlayerForm } from '@/components/forms/CreatePlayerForm';
 import { CreateMatchForm } from '@/components/forms/CreateMatchForm';
+import { supabase } from '@/integrations/supabase/client';
 
 export const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('teams');
   const [teamDialogOpen, setTeamDialogOpen] = useState(false);
   const [playerDialogOpen, setPlayerDialogOpen] = useState(false);
   const [matchDialogOpen, setMatchDialogOpen] = useState(false);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [players, setPlayers] = useState<any[]>([]);
+  const [matches, setMatches] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchTeams();
+    fetchPlayers();
+    fetchMatches();
+    
+    // Set up real-time subscriptions
+    const teamsChannel = supabase
+      .channel('teams_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, 
+        () => { fetchTeams(); })
+      .subscribe();
+
+    const playersChannel = supabase
+      .channel('players_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, 
+        () => { fetchPlayers(); })
+      .subscribe();
+
+    const matchesChannel = supabase
+      .channel('matches_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, 
+        () => { fetchMatches(); })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(teamsChannel);
+      supabase.removeChannel(playersChannel);
+      supabase.removeChannel(matchesChannel);
+    };
+  }, []);
+
+  const fetchTeams = async () => {
+    const { data } = await supabase.from('teams').select('*').order('name');
+    setTeams(data || []);
+  };
+
+  const fetchPlayers = async () => {
+    const { data } = await supabase.from('players').select('*, teams(name)').order('name');
+    setPlayers(data || []);
+  };
+
+  const fetchMatches = async () => {
+    const { data } = await supabase
+      .from('matches')
+      .select('*, home_team:teams!matches_home_team_id_fkey(name), away_team:teams!matches_away_team_id_fkey(name)')
+      .order('match_date');
+    setMatches(data || []);
+  };
 
   const handleFormSuccess = () => {
-    // Close dialogs and potentially refresh data
     setTeamDialogOpen(false);
     setPlayerDialogOpen(false);
     setMatchDialogOpen(false);
@@ -38,10 +90,10 @@ export const AdminDashboard = () => {
           <CardContent className="p-6">
             <div className="flex items-center">
               <Trophy className="h-8 w-8 text-marista-dark-blue" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Equipes</p>
-                <p className="text-2xl font-bold">0</p>
-              </div>
+               <div className="ml-4">
+                 <p className="text-sm font-medium text-gray-600">Equipes</p>
+                 <p className="text-2xl font-bold">{teams.length}</p>
+               </div>
             </div>
           </CardContent>
         </Card>
@@ -50,10 +102,10 @@ export const AdminDashboard = () => {
           <CardContent className="p-6">
             <div className="flex items-center">
               <Users className="h-8 w-8 text-marista-light-blue" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Jogadores</p>
-                <p className="text-2xl font-bold">0</p>
-              </div>
+               <div className="ml-4">
+                 <p className="text-sm font-medium text-gray-600">Jogadores</p>
+                 <p className="text-2xl font-bold">{players.length}</p>
+               </div>
             </div>
           </CardContent>
         </Card>
@@ -62,10 +114,10 @@ export const AdminDashboard = () => {
           <CardContent className="p-6">
             <div className="flex items-center">
               <Calendar className="h-8 w-8 text-marista-dark-blue" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Partidas</p>
-                <p className="text-2xl font-bold">0</p>
-              </div>
+               <div className="ml-4">
+                 <p className="text-sm font-medium text-gray-600">Partidas</p>
+                 <p className="text-2xl font-bold">{matches.length}</p>
+               </div>
             </div>
           </CardContent>
         </Card>
@@ -117,9 +169,29 @@ export const AdminDashboard = () => {
                   </DialogContent>
                 </Dialog>
               </div>
-              <div className="text-center py-8 text-gray-500">
-                Nenhuma equipe cadastrada ainda.
-              </div>
+               {teams.length === 0 ? (
+                 <div className="text-center py-8 text-gray-500">
+                   Nenhuma equipe cadastrada ainda.
+                 </div>
+               ) : (
+                 <div className="grid gap-4">
+                   {teams.map((team) => (
+                     <Card key={team.id}>
+                       <CardContent className="p-4">
+                         <div className="flex items-center gap-3">
+                           {team.logo_url && (
+                             <img src={team.logo_url} alt={team.name} className="w-12 h-12 rounded-full object-cover" />
+                           )}
+                           <div>
+                             <h4 className="font-medium">{team.name}</h4>
+                             <p className="text-sm text-gray-500">Criado em {new Date(team.created_at).toLocaleDateString()}</p>
+                           </div>
+                         </div>
+                       </CardContent>
+                     </Card>
+                   ))}
+                 </div>
+               )}
             </TabsContent>
 
             <TabsContent value="players" className="space-y-4">
@@ -143,9 +215,30 @@ export const AdminDashboard = () => {
                   </DialogContent>
                 </Dialog>
               </div>
-              <div className="text-center py-8 text-gray-500">
-                Nenhum jogador cadastrado ainda.
-              </div>
+               {players.length === 0 ? (
+                 <div className="text-center py-8 text-gray-500">
+                   Nenhum jogador cadastrado ainda.
+                 </div>
+               ) : (
+                 <div className="grid gap-4">
+                   {players.map((player) => (
+                     <Card key={player.id}>
+                       <CardContent className="p-4">
+                         <div className="flex items-center gap-3">
+                           {player.photo_url && (
+                             <img src={player.photo_url} alt={player.name} className="w-12 h-12 rounded-full object-cover" />
+                           )}
+                           <div>
+                             <h4 className="font-medium">{player.name}</h4>
+                             <p className="text-sm text-gray-500">#{player.jersey_number} - {player.position}</p>
+                             <p className="text-sm text-gray-500">{player.teams?.name}</p>
+                           </div>
+                         </div>
+                       </CardContent>
+                     </Card>
+                   ))}
+                 </div>
+               )}
             </TabsContent>
 
             <TabsContent value="matches" className="space-y-4">
@@ -169,9 +262,40 @@ export const AdminDashboard = () => {
                   </DialogContent>
                 </Dialog>
               </div>
-              <div className="text-center py-8 text-gray-500">
-                Nenhuma partida agendada ainda.
-              </div>
+               {matches.length === 0 ? (
+                 <div className="text-center py-8 text-gray-500">
+                   Nenhuma partida agendada ainda.
+                 </div>
+               ) : (
+                 <div className="grid gap-4">
+                   {matches.map((match) => (
+                     <Card key={match.id}>
+                       <CardContent className="p-4">
+                         <div className="flex items-center justify-between">
+                           <div className="flex items-center gap-3">
+                             <div className="text-center">
+                               <p className="font-medium">{match.home_team?.name}</p>
+                               <p className="text-2xl font-bold">{match.home_score ?? '-'}</p>
+                             </div>
+                             <div className="px-2 text-gray-500">vs</div>
+                             <div className="text-center">
+                               <p className="font-medium">{match.away_team?.name}</p>
+                               <p className="text-2xl font-bold">{match.away_score ?? '-'}</p>
+                             </div>
+                           </div>
+                           <div className="text-right">
+                             <p className="text-sm font-medium">{match.stage}</p>
+                             <p className="text-sm text-gray-500">
+                               {new Date(match.match_date).toLocaleDateString()} às {new Date(match.match_date).toLocaleTimeString()}
+                             </p>
+                             {match.location && <p className="text-sm text-gray-500">{match.location}</p>}
+                           </div>
+                         </div>
+                       </CardContent>
+                     </Card>
+                   ))}
+                 </div>
+               )}
             </TabsContent>
 
             <TabsContent value="events" className="space-y-4">

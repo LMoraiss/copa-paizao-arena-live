@@ -9,15 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Upload } from 'lucide-react';
 
 const playerSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
-  jersey_number: z.number().min(1, 'Número deve ser maior que 0').max(99, 'Número deve ser menor que 100'),
+  jersey_number: z.coerce.number().min(1, 'Número deve ser maior que 0').max(99, 'Número deve ser menor que 100'),
   position: z.enum(['goalkeeper', 'defender', 'midfielder', 'forward'], {
     required_error: 'Posição é obrigatória',
   }),
   photo_url: z.string().url().optional().or(z.literal('')),
   team_id: z.string().uuid('Selecione um time'),
+  photo_file: z.any().optional(),
 });
 
 type PlayerFormData = z.infer<typeof playerSchema>;
@@ -43,6 +45,8 @@ export const CreatePlayerForm: React.FC<CreatePlayerFormProps> = ({ onSuccess, o
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { toast } = useToast();
 
   const {
@@ -88,17 +92,60 @@ export const CreatePlayerForm: React.FC<CreatePlayerFormProps> = ({ onSuccess, o
     }
   };
 
+  const uploadImage = async (file: File): Promise<string | null> => {
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `player-photos/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('player-photos')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage
+        .from('player-photos')
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: 'Erro',
+        description: 'Falha ao fazer upload da imagem.',
+        variant: 'destructive',
+      });
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const onSubmit = async (data: PlayerFormData) => {
     setIsSubmitting(true);
     
     try {
+      let photoUrl = data.photo_url || null;
+
+      // Upload image if file is selected
+      if (selectedFile) {
+        const uploadedUrl = await uploadImage(selectedFile);
+        if (uploadedUrl) {
+          photoUrl = uploadedUrl;
+        }
+      }
+
       const { error } = await supabase
         .from('players')
         .insert([{
           name: data.name,
           jersey_number: data.jersey_number,
           position: data.position,
-          photo_url: data.photo_url || null,
+          photo_url: photoUrl,
           team_id: data.team_id,
         }]);
 
@@ -126,6 +173,7 @@ export const CreatePlayerForm: React.FC<CreatePlayerFormProps> = ({ onSuccess, o
       });
 
       reset();
+      setSelectedFile(null);
       onSuccess?.();
     } catch (error) {
       console.error('Unexpected error:', error);
@@ -212,12 +260,28 @@ export const CreatePlayerForm: React.FC<CreatePlayerFormProps> = ({ onSuccess, o
           </div>
 
           <div>
-            <Label htmlFor="photo_url">URL da Foto</Label>
-            <Input
-              id="photo_url"
-              {...register('photo_url')}
-              placeholder="https://exemplo.com/foto.jpg"
-            />
+            <Label htmlFor="photo_file">Foto do Jogador</Label>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Input
+                  id="photo_file"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                  className="flex-1"
+                />
+                <Upload className="w-4 h-4 text-gray-500" />
+              </div>
+              <div className="text-center text-sm text-gray-500">ou</div>
+              <Input
+                {...register('photo_url')}
+                placeholder="Cole a URL de uma imagem"
+                disabled={!!selectedFile}
+              />
+              {selectedFile && (
+                <p className="text-sm text-green-600">Arquivo selecionado: {selectedFile.name}</p>
+              )}
+            </div>
             {errors.photo_url && (
               <p className="text-sm text-destructive mt-1">{errors.photo_url.message}</p>
             )}
@@ -226,10 +290,10 @@ export const CreatePlayerForm: React.FC<CreatePlayerFormProps> = ({ onSuccess, o
           <div className="flex gap-2 pt-4">
             <Button 
               type="submit" 
-              disabled={isSubmitting || loadingTeams || teams.length === 0} 
+              disabled={isSubmitting || loadingTeams || uploading || teams.length === 0} 
               className="flex-1"
             >
-              {isSubmitting ? 'Criando...' : 'Criar Jogador'}
+              {isSubmitting ? 'Criando...' : uploading ? 'Enviando imagem...' : 'Criar Jogador'}
             </Button>
             {onCancel && (
               <Button type="button" variant="outline" onClick={onCancel}>

@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (fetchError && fetchError.code !== 'PGRST116') {
         console.error('❌ Error fetching profile:', fetchError);
-        return null;
+        throw new Error('Erro ao carregar perfil');
       }
 
       if (existingProfile) {
@@ -80,14 +80,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (createError) {
         console.error('❌ Error creating profile:', createError);
-        return null;
+        throw new Error('Erro ao criar perfil');
       }
 
       console.log('✅ Successfully created profile:', newProfile);
       return newProfile;
     } catch (error) {
       console.error('💥 Unexpected error in createProfileIfNeeded:', error);
-      return null;
+      throw error;
     }
   };
 
@@ -108,6 +108,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             } catch (error) {
               console.error('Profile creation/fetch failed:', error);
               setProfile(null);
+              toast({
+                title: 'Erro',
+                description: error instanceof Error ? error.message : 'Erro ao carregar perfil',
+                variant: 'destructive',
+              });
             } finally {
               setLoading(false);
             }
@@ -135,6 +140,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             console.error('Initial profile fetch failed:', error);
             setProfile(null);
             setLoading(false);
+            toast({
+              title: 'Erro',
+              description: error instanceof Error ? error.message : 'Erro ao carregar perfil',
+              variant: 'destructive',
+            });
           });
       } else {
         setLoading(false);

@@ -159,7 +159,7 @@ export const CreateMatchForm: React.FC<CreateMatchFormProps> = ({ onSuccess, onC
               <SelectTrigger>
                 <SelectValue placeholder={loadingTeams ? "Carregando times..." : "Selecione o time da casa"} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-60 overflow-y-auto">
                 {teams.map((team) => (
                   <SelectItem key={team.id} value={team.id}>
                     {team.name}
@@ -178,7 +178,7 @@ export const CreateMatchForm: React.FC<CreateMatchFormProps> = ({ onSuccess, onC
               <SelectTrigger>
                 <SelectValue placeholder={loadingTeams ? "Carregando times..." : "Selecione o time visitante"} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-60 overflow-y-auto">
                 {teams.filter(team => team.id !== selectedHomeTeam).map((team) => (
                   <SelectItem key={team.id} value={team.id}>
                     {team.name}
