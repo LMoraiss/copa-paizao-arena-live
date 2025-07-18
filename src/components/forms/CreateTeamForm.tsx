@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -21,9 +21,14 @@ type TeamFormData = z.infer<typeof teamSchema>;
 interface CreateTeamFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
+  editingTeam?: { id: string; name: string; logo_url: string | null };
 }
 
-export const CreateTeamForm: React.FC<CreateTeamFormProps> = ({ onSuccess, onCancel }) => {
+export const CreateTeamForm: React.FC<CreateTeamFormProps> = ({
+  onSuccess,
+  onCancel,
+  editingTeam,
+}) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -34,9 +39,24 @@ export const CreateTeamForm: React.FC<CreateTeamFormProps> = ({ onSuccess, onCan
     handleSubmit,
     formState: { errors },
     reset,
+    setValue,
   } = useForm<TeamFormData>({
     resolver: zodResolver(teamSchema),
+    defaultValues: editingTeam
+      ? {
+          name: editingTeam.name,
+          logo_url: editingTeam.logo_url || '',
+        }
+      : {},
   });
+
+  // Pré-carrega valores se estivermos editando
+  useEffect(() => {
+    if (editingTeam) {
+      setValue('name', editingTeam.name);
+      setValue('logo_url', editingTeam.logo_url || '');
+    }
+  }, [editingTeam, setValue]);
 
   const uploadImage = async (file: File): Promise<string | null> => {
     setUploading(true);
@@ -53,10 +73,7 @@ export const CreateTeamForm: React.FC<CreateTeamFormProps> = ({ onSuccess, onCan
         throw uploadError;
       }
 
-      const { data } = supabase.storage
-        .from('team-logos')
-        .getPublicUrl(filePath);
-
+      const { data } = supabase.storage.from('team-logos').getPublicUrl(filePath);
       return data.publicUrl;
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -73,11 +90,11 @@ export const CreateTeamForm: React.FC<CreateTeamFormProps> = ({ onSuccess, onCan
 
   const onSubmit = async (data: TeamFormData) => {
     setIsSubmitting(true);
-    
+
     try {
       let logoUrl = data.logo_url || null;
 
-      // Upload image if file is selected
+      // Se um arquivo foi selecionado, faz upload
       if (selectedFile) {
         const uploadedUrl = await uploadImage(selectedFile);
         if (uploadedUrl) {
@@ -85,44 +102,49 @@ export const CreateTeamForm: React.FC<CreateTeamFormProps> = ({ onSuccess, onCan
         }
       }
 
-      const { error } = await supabase
-        .from('teams')
-        .insert([{
-          name: data.name,
-          logo_url: logoUrl,
-        }]);
+      let error;
+      if (editingTeam) {
+        // Modo edição
+        ({ error } = await supabase
+          .from('teams')
+          .update({ name: data.name, logo_url: logoUrl })
+          .eq('id', editingTeam.id));
+      } else {
+        // Modo criação
+        ({ error } = await supabase
+          .from('teams')
+          .insert([{ name: data.name, logo_url: logoUrl }]));
+      }
 
       if (error) {
-        console.error('Error creating team:', error);
-        if (error.code === '23505') {
-          toast({
-            title: 'Erro',
-            description: 'Já existe um time com este nome.',
-            variant: 'destructive',
-          });
-        } else {
-          toast({
-            title: 'Erro',
-            description: 'Falha ao criar time. Verifique se você tem permissão de administrador.',
-            variant: 'destructive',
-          });
-        }
+        console.error('Error saving team:', error);
+        toast({
+          title: 'Erro',
+          description: editingTeam
+            ? 'Falha ao atualizar time.'
+            : 'Falha ao criar time.',
+          variant: 'destructive',
+        });
         return;
       }
 
       toast({
         title: 'Sucesso',
-        description: 'Time criado com sucesso!',
+        description: editingTeam
+          ? 'Time atualizado com sucesso!'
+          : 'Time criado com sucesso!',
       });
 
       reset();
       setSelectedFile(null);
       onSuccess?.();
-    } catch (error) {
-      console.error('Unexpected error:', error);
+    } catch (err) {
+      console.error('Unexpected error:', err);
       toast({
         title: 'Erro',
-        description: 'Erro inesperado ao criar time.',
+        description: editingTeam
+          ? 'Erro inesperado ao atualizar time.'
+          : 'Erro inesperado ao criar time.',
         variant: 'destructive',
       });
     } finally {
@@ -133,7 +155,7 @@ export const CreateTeamForm: React.FC<CreateTeamFormProps> = ({ onSuccess, onCan
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
-        <CardTitle>Criar Novo Time</CardTitle>
+        <CardTitle>{editingTeam ? 'Editar Time' : 'Criar Novo Time'}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -145,7 +167,9 @@ export const CreateTeamForm: React.FC<CreateTeamFormProps> = ({ onSuccess, onCan
               placeholder="Ex: Flamengo"
             />
             {errors.name && (
-              <p className="text-sm text-destructive mt-1">{errors.name.message}</p>
+              <p className="text-sm text-destructive mt-1">
+                {errors.name.message}
+              </p>
             )}
           </div>
 
@@ -157,7 +181,9 @@ export const CreateTeamForm: React.FC<CreateTeamFormProps> = ({ onSuccess, onCan
                   id="logo_file"
                   type="file"
                   accept="image/*"
-                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                  onChange={(e) =>
+                    setSelectedFile(e.target.files?.[0] || null)
+                  }
                   className="flex-1"
                 />
                 <Upload className="w-4 h-4 text-gray-500" />
@@ -169,17 +195,33 @@ export const CreateTeamForm: React.FC<CreateTeamFormProps> = ({ onSuccess, onCan
                 disabled={!!selectedFile}
               />
               {selectedFile && (
-                <p className="text-sm text-green-600">Arquivo selecionado: {selectedFile.name}</p>
+                <p className="text-sm text-green-600">
+                  Arquivo selecionado: {selectedFile.name}
+                </p>
               )}
             </div>
             {errors.logo_url && (
-              <p className="text-sm text-destructive mt-1">{errors.logo_url.message}</p>
+              <p className="text-sm text-destructive mt-1">
+                {errors.logo_url.message}
+              </p>
             )}
           </div>
 
           <div className="flex gap-2 pt-4">
-            <Button type="submit" disabled={isSubmitting || uploading} className="flex-1">
-              {isSubmitting ? 'Criando...' : uploading ? 'Enviando imagem...' : 'Criar Time'}
+            <Button
+              type="submit"
+              disabled={isSubmitting || uploading}
+              className="flex-1"
+            >
+              {isSubmitting
+                ? editingTeam
+                  ? 'Salvando...'
+                  : 'Criando...'
+                : uploading
+                ? 'Enviando imagem...'
+                : editingTeam
+                ? 'Salvar Alterações'
+                : 'Criar Time'}
             </Button>
             {onCancel && (
               <Button type="button" variant="outline" onClick={onCancel}>
